@@ -1,1 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bet Logger v2.0</title>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --border: #2a2a2a;
+  --border2: #333333;
+  --text: #e8e8e8;
+  --text2: #999999;
+  --text3: #555555;
+  --accent: #c8f542;
+  --accent2: #a3d42a;
+  --info: #4a9eff;
+  --warn: #ffb84a;
+  --danger: #ff5a5a;
+  --success: #42c87a;
+  --font: 'Courier New', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;min-height:100vh}
+.app{max-width:480px;margin:0 auto;padding:12px}
+
+/* header */
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.header-left h1{font-size:18px;font-weight:700;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
+.header-left .sub{font-size:10px;color:var(--text3);letter-spacing:1px;margin-top:2px}
+.log-toggle{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:6px 10px;font-family:var(--font);font-size:11px;cursor:pointer;letter-spacing:1px}
+.log-toggle:hover{border-color:var(--accent);color:var(--accent)}
+
+/* section */
+.section{margin-bottom:14px}
+.section-label{font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+
+/* mode selector */
+.mode-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
+.mode-btn{padding:10px 6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);font-family:var(--font);font-size:10px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-align:center;transition:all 0.15s}
+.mode-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mode-btn.active{border-color:var(--accent);background:rgba(200,245,66,0.08);color:var(--accent);font-weight:700}
+
+/* params bar */
+.params-bar{background:var(--bg3);border:1px solid var(--border);padding:6px 10px;margin-bottom:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.param-item{font-size:10px;color:var(--text3);letter-spacing:0.5px}
+.param-item span{color:var(--text2)}
+
+/* field grid */
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.field-grid.full{grid-template-columns:1fr}
+.field-wrap{display:flex;flex-direction:column;gap:3px}
+.field-label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase}
+.field-input{background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:13px;padding:7px 10px;width:100%;outline:none;transition:border-color 0.15s;-webkit-appearance:none}
+.field-input:focus{border-color:var(--accent)}
+.field-input::placeholder{color:var(--text3)}
+select.field-input{cursor:pointer}
+select.field-input option{background:var(--bg2)}
+
+/* autocomplete wrapper */
+.ac-wrap{position:relative}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--border2);border-top:none;z-index:100;max-height:140px;overflow-y:auto;display:none}
+.ac-list.open{display:block}
+.ac-item{padding:7px 10px;font-size:12px;color:var(--text2);cursor:pointer;border-bottom:1px solid var(--border)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.selected{background:var(--bg2);color:var(--accent)}
+
+/* calc box */
+.calc-box{background:var(--bg3);border:1px solid var(--border);padding:10px;margin-bottom:10px}
+.calc-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border)}
+.calc-row:last-child{border-bottom:none;margin-top:4px;padding-top:6px}
+.calc-label{font-size:11px;color:var(--text3);letter-spacing:1px}
+.calc-val{font-size:13px;color:var(--text)}
+.calc-val.big{font-size:20px;color:var(--accent);font-weight:700;letter-spacing:1px}
+.calc-val.muted{color:var(--text3)}
+.calc-val.stake{font-size:15px;color:var(--warn)}
+.calc-empty{text-align:center;padding:12px;font-size:11px;color:var(--text3);letter-spacing:1px}
+
+/* divider */
+.divider{border:none;border-top:1px solid var(--border);margin:12px 0}
+
+/* context signals */
+.signals-wrap{border:1px solid var(--border);background:var(--bg2)}
+.signal-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid var(--border);cursor:pointer}
+.signal-row:last-child{border-bottom:none}
+.signal-row:hover{background:var(--bg3)}
+.signal-check{width:14px;height:14px;border:1px solid var(--border2);background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--accent)}
+.signal-check.on{border-color:var(--accent);background:rgba(200,245,66,0.1)}
+.signal-label{font-size:12px;color:var(--text2);flex:1;user-select:none}
+.signal-sub{font-size:10px;color:var(--text3)}
+.signal-input-wrap{display:flex;align-items:center;gap:6px}
+.signal-field{width:60px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:12px;padding:4px 6px;outline:none}
+.signal-field:focus{border-color:var(--accent)}
+.signal-field.wide{width:140px}
+
+/* toggles */
+.toggle-section{border:1px solid var(--border);background:var(--bg2);margin-bottom:10px}
+.toggle-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none}
+.toggle{width:34px;height:18px;border:1px solid var(--border2);background:var(--bg3);cursor:pointer;position:relative;flex-shrink:0}
+.toggle.on{border-color:var(--accent);background:rgba(200,245,66,0.15)}
+.toggle-dot{width:12px;height:12px;background:var(--text3);position:absolute;top:2px;left:2px;transition:all 0.15s}
+.toggle.on .toggle-dot{left:18px;background:var(--accent)}
+.toggle-label{font-size:12px;color:var(--text2);flex:1;cursor:pointer;user-select:none}
+
+/* promo section */
+.promo-section{border:1px solid var(--border);background:var(--bg2);padding:10px;margin-bottom:10px;display:none}
+.promo-section.show{display:block}
+
+/* log button */
+.log-btn{width:100%;padding:13px;background:var(--accent);color:var(--bg);font-family:var(--font);font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border:none;cursor:pointer;transition:background 0.15s;margin-bottom:14px}
+.log-btn:hover{background:var(--accent2)}
+.log-btn:active{transform:scale(0.99)}
+.log-btn:disabled{background:var(--bg3);color:var(--text3);cursor:not-allowed}
+
+/* session log */
+.session-log{border:1px solid var(--border);background:var(--bg2)}
+.log-header{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border)}
+.log-header-title{font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+.log-empty{padding:12px 10px;font-size:11px;color:var(--text3);text-align:center;letter-spacing:1px}
+.log-entry{padding:9px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.log-entry:last-child{border-bottom:none}
+.log-entry-left{flex:1;min-width:0}
+.log-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-detail{font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:0.5px}
+.log-entry-right{text-align:right;flex-shrink:0}
+.log-units{font-size:13px;color:var(--accent);font-weight:700}
+.log-stake{font-size:10px;color:var(--warn);margin-top:2px}
+.badge{display:inline-block;font-size:9px;padding:2px 5px;letter-spacing:1px;margin-right:3px;text-transform:uppercase}
+.badge-kelly{border:1px solid var(--info);color:var(--info)}
+.badge-signal{border:1px solid var(--warn);color:var(--warn)}
+.badge-promo{border:1px solid var(--success);color:var(--success)}
+.badge-parlay{border:1px solid var(--text3);color:var(--text3)}
+.badge-live{border:1px solid var(--danger);color:var(--danger)}
+
+/* status */
+.status-bar{padding:6px 10px;font-size:10px;letter-spacing:1px;text-align:center;margin-bottom:10px;display:none}
+.status-bar.success{background:rgba(66,200,122,0.1);border:1px solid var(--success);color:var(--success);display:block}
+.status-bar.error{background:rgba(255,90,90,0.1);border:1px solid var(--danger);color:var(--danger);display:block}
+.status-bar.sending{background:rgba(74,158,255,0.1);border:1px solid var(--info);color:var(--info);display:block}
+
+/* hidden sections */
+.kelly-section{display:none}
+.kelly-section.show{display:block}
+.promo-fields{display:none}
+.promo-fields.show{display:block}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <div class="header-left">
+    <h1>Bet Logger</h1>
+    <div class="sub">v2.0 &mdash; ECH</div>
+  </div>
+  <button class="log-toggle" onclick="toggleSessionLog()" id="log-toggle-btn">&#9660; LOG (0)</button>
+</div>
+
+<div id="status-bar" class="status-bar"></div>
+
+<!-- ENTRY MODE -->
+<div class="section-label">Entry mode</div>
+<div class="mode-grid">
+  <button class="mode-btn active" onclick="setMode('kelly')" id="mode-kelly">Full Kelly</button>
+  <button class="mode-btn" onclick="setMode('signal')" id="mode-signal">Signal-based</button>
+  <button class="mode-btn" onclick="setMode('promo')" id="mode-promo">Promo / entertainment</button>
+</div>
+
+<!-- PARAMS BAR -->
+<div class="params-bar" id="params-bar">
+  <div class="param-item">bankroll: <span id="p-bankroll">$10,000</span></div>
+  <div class="param-item">k: <span id="p-k">0.12</span></div>
+  <div class="param-item">max: <span id="p-max">4u</span></div>
+  <div class="param-item">hold: <span id="p-hold">7%</span></div>
+</div>
+
+<!-- BET DETAILS -->
+<div class="section">
+  <div class="section-label">Bet details</div>
+  <div class="field-grid">
+    <div class="field-wrap">
+      <div class="field-label">Sport</div>
+      <select class="field-input" id="sport" onchange="onSportChange()">
+        <option value="">--</option>
+        <option value="NHL">NHL</option>
+        <option value="MLB">MLB</option>
+        <option value="NBA">NBA</option>
+        <option value="NFL">NFL</option>
+        <option value="NCAAB">NCAAB</option>
+        <option value="NCAAF">NCAAF</option>
+        <option value="Golf">Golf</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Book</div>
+      <div class="ac-wrap">
+        <input class="field-input" id="book" placeholder="DraftKings..." autocomplete="off"
+          oninput="acInput('book')" onblur="acBlur('book')" onfocus="acInput('book')">
+        <div class="ac-list" id="book-ac"></div>
+      </div>
+    </div>
+  </div>
+  <div class="field-grid full">
+    <div class="field-wrap">
+      <div class="field-label">Player / Game</div>
+      <div class="ac-wrap">
+        <input class="field-input" id="player" placeholder="e.g. T. Myers or LAK @ EDM" autocomplete="off"
+          oninput="acInput('player')" onblur="acBlur('player')" onfocus="acInput('player')">
+        <div class="ac-list" id="player-ac"></div>
+      </div>
+    </div>
+  </div>
+  <div class="field-grid">
+    <div class="field-wrap">
+      <div class="field-label">Market type</div>
+      <div class="ac-wrap">
+        <input class="field-input" id="market-type" placeholder="Blocks, ML, Total..." autocomplete="off"
+          oninput="acInput('market-type')" onblur="acBlur('market-type')" onfocus="acInput('market-type')">
+        <div class="ac-list" id="market-type-ac"></div>
+      </div>
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Bet description</div>
+      <div class="ac-wrap">
+        <input class="field-input" id="bet-desc" placeholder="O 1.5, u7.5..." autocomplete="off"
+          oninput="acInput('bet-desc')" onblur="acBlur('bet-desc')" onfocus="acInput('bet-desc')">
+        <div class="ac-list" id="bet-desc-ac"></div>
+      </div>
+    </div>
+  </div>
+  <div class="field-grid">
+    <div class="field-wrap">
+      <div class="field-label">Odds</div>
+      <input class="field-input" id="odds" placeholder="-154 or +120" type="number" oninput="recalc()">
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Bet type</div>
+      <select class="field-input" id="bet-type">
+        <option value="Single">Single</option>
+        <option value="Parlay leg">Parlay leg</option>
+        <option value="Futures">Futures</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- KELLY SECTION -->
+<div class="kelly-section show" id="kelly-section">
+  <div class="section-label">Kelly inputs</div>
+  <div class="field-grid">
+    <div class="field-wrap">
+      <div class="field-label">AN Edge %</div>
+      <input class="field-input" id="edge" placeholder="e.g. 0.145" type="number" step="0.001" oninput="recalc()">
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Other side odds</div>
+      <input class="field-input" id="odds2" placeholder="optional" type="number" oninput="recalc()">
+    </div>
+  </div>
+  <div class="field-grid">
+    <div class="field-wrap">
+      <div class="field-label">Market availability</div>
+      <select class="field-input" id="market-avail">
+        <option value="Mainstream">Mainstream</option>
+        <option value="Limited">Limited</option>
+        <option value="Illiquid">Illiquid</option>
+      </select>
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Bankroll ($)</div>
+      <input class="field-input" id="bankroll" type="number" value="10000" oninput="recalc()">
+    </div>
+  </div>
+
+  <!-- CALC OUTPUT -->
+  <div class="calc-box" id="calc-box">
+    <div class="calc-empty" id="calc-empty">Enter edge and odds to see sizing.</div>
+    <div id="calc-results" style="display:none">
+      <div class="calc-row"><span class="calc-label">Vig method</span><span class="calc-val muted" id="r-vigmethod">—</span></div>
+      <div class="calc-row"><span class="calc-label">No-vig prob</span><span class="calc-val" id="r-novig">—</span></div>
+      <div class="calc-row"><span class="calc-label">True prob</span><span class="calc-val" id="r-trueprob">—</span></div>
+      <div class="calc-row"><span class="calc-label">Full Kelly</span><span class="calc-val muted" id="r-fullkelly">—</span></div>
+      <div class="calc-row"><span class="calc-label">Units</span><span class="calc-val big" id="r-units">—</span></div>
+      <div class="calc-row"><span class="calc-label">Stake / Total bet</span><span class="calc-val stake" id="r-stake">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNAL-BASED STAKE (non-Kelly modes) -->
+<div id="manual-stake-section" style="display:none">
+  <div class="section-label">Sizing</div>
+  <div class="field-grid">
+    <div class="field-wrap">
+      <div class="field-label">Units</div>
+      <input class="field-input" id="manual-units" placeholder="e.g. 1.5" type="number" step="0.1" oninput="updateManualStake()">
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Stake ($)</div>
+      <input class="field-input" id="manual-stake" placeholder="e.g. 150" type="number" oninput="updateManualUnits()">
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- CONTEXT SIGNALS -->
+<div class="section-label">Context signals <span style="color:var(--text3);font-size:10px;letter-spacing:0">(optional)</span></div>
+<div class="signals-wrap" style="margin-bottom:10px">
+  <div class="signal-row" onclick="toggleSignal('sharps')">
+    <div class="signal-check" id="sig-sharps">&#10003;</div>
+    <div style="flex:1"><div class="signal-label">Sharps</div></div>
+    <div class="signal-input-wrap" id="sig-sharps-input" onclick="event.stopPropagation()">
+      <input class="signal-field" id="sharp-count" type="number" min="0" max="20" placeholder="#" value="">
+    </div>
+  </div>
+  <div class="signal-row" onclick="toggleSignal('split')">
+    <div class="signal-check" id="sig-split"></div>
+    <div style="flex:1">
+      <div class="signal-label">$ / ticket split</div>
+      <div class="signal-sub">significant money vs ticket divergence</div>
+    </div>
+  </div>
+  <div class="signal-row" onclick="toggleSignal('tail')">
+    <div class="signal-check" id="sig-tail"></div>
+    <div style="flex:1"><div class="signal-label">Tailing</div></div>
+    <div class="signal-input-wrap" id="sig-tail-input" style="display:none" onclick="event.stopPropagation()">
+      <div class="ac-wrap">
+        <input class="signal-field wide" id="tail-source" placeholder="source..." autocomplete="off"
+          oninput="acInput('tail-source')" onblur="acBlur('tail-source')" onfocus="acInput('tail-source')">
+        <div class="ac-list" id="tail-source-ac"></div>
+      </div>
+    </div>
+  </div>
+  <div class="signal-row" onclick="toggleSignal('model')">
+    <div class="signal-check" id="sig-model"></div>
+    <div style="flex:1"><div class="signal-label">Secondary model</div></div>
+    <div class="signal-input-wrap" id="sig-model-input" style="display:none" onclick="event.stopPropagation()">
+      <input class="signal-field wide" id="sec-model" placeholder="e.g. The Score" autocomplete="off"
+        oninput="acInput('sec-model')" onblur="acBlur('sec-model')" onfocus="acInput('sec-model')">
+      <div class="ac-list" id="sec-model-ac" style="position:absolute;top:100%;right:0;width:200px"></div>
+    </div>
+  </div>
+  <div class="signal-row" onclick="toggleSignal('notes')">
+    <div class="signal-check" id="sig-notes"></div>
+    <div style="flex:1"><div class="signal-label">Notes</div></div>
+    <div class="signal-input-wrap" id="sig-notes-input" style="display:none;width:100%" onclick="event.stopPropagation()">
+    </div>
+  </div>
+  <div id="notes-textarea-row" style="display:none;padding:0 10px 8px">
+    <textarea class="field-input" id="notes-text" rows="2" placeholder="free text..." style="width:100%;resize:none;padding:6px 8px"></textarea>
+  </div>
+</div>
+
+<!-- PROMO FIELDS -->
+<div class="promo-fields" id="promo-fields">
+  <div class="section-label">Promo details</div>
+  <div class="field-grid">
+    <div class="field-wrap">
+      <div class="field-label">Promo type</div>
+      <select class="field-input" id="promo-type" onchange="onPromoTypeChange()">
+        <option value="None">None</option>
+        <option value="Boost">Boost</option>
+        <option value="Free bet">Free bet</option>
+        <option value="Qualifier">Qualifier</option>
+        <option value="Early payout">Early payout</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Promo intent</div>
+      <select class="field-input" id="promo-intent">
+        <option value="Y">Y — placed for promo</option>
+        <option value="N">N — standalone EV</option>
+      </select>
+    </div>
+  </div>
+  <div id="boost-fields" style="display:none">
+    <div class="field-grid">
+      <div class="field-wrap">
+        <div class="field-label">Boost %</div>
+        <input class="field-input" id="boost-pct" type="number" placeholder="e.g. 25" oninput="calcBoostedOdds()">
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">Boosted odds</div>
+        <input class="field-input" id="boosted-odds" placeholder="auto-calc" readonly style="color:var(--accent)">
+      </div>
+    </div>
+  </div>
+  <div id="freebet-fields" style="display:none">
+    <div class="field-grid">
+      <div class="field-wrap">
+        <div class="field-label">Free bet amount ($)</div>
+        <input class="field-input" id="freebet-amt" type="number" placeholder="face value">
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">Linked promo</div>
+        <input class="field-input" id="linked-promo" placeholder="e.g. earned 5/3 DK">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOGGLES -->
+<div class="toggle-section">
+  <div class="toggle-row" onclick="toggleSwitch('live')">
+    <div class="toggle" id="tog-live"><div class="toggle-dot"></div></div>
+    <div class="toggle-label">Live bet</div>
+  </div>
+  <div class="toggle-row" onclick="toggleSwitch('parlay')">
+    <div class="toggle" id="tog-parlay"><div class="toggle-dot"></div></div>
+    <div class="toggle-label">Part of a parlay</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<button class="log-btn" id="log-btn" onclick="logBet()">&#9654; Log bet</button>
+
+<!-- SESSION LOG -->
+<div class="session-log" id="session-log" style="display:none">
+  <div class="log-header">
+    <div class="log-header-title">Session log</div>
+    <div style="font-size:10px;color:var(--text3)" id="session-count">0 bets</div>
+  </div>
+  <div id="log-entries">
+    <div class="log-empty" id="log-empty">No bets logged this session.</div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyeviClAKVXpipOZveE1DqnnTvk5C2WybqtAbp3QobR_6Fc3qAnGjci947OGY-htQJuWA/exec';
+const MODEL_VERSION = '2.0.0';
+
+const PRESETS = {
+  NHL:   { bankroll: 10000, k: 0.12, maxU: 4, holdProp: 0.07, holdSide: 0.05 },
+  MLB:   { bankroll: 7000,  k: 0.10, maxU: 3, holdProp: 0.035, holdSide: 0.05 },
+  NBA:   { bankroll: 10000, k: 0.08, maxU: 3, holdProp: 0.07, holdSide: 0.05 },
+  NFL:   { bankroll: 10000, k: 0.10, maxU: 3, holdProp: 0.07, holdSide: 0.05 },
+  default:{ bankroll: 10000, k: 0.10, maxU: 3, holdProp: 0.07, holdSide: 0.05 }
+};
+
+const SIDE_MARKETS = ['ml','moneyline','spread','total','over','under','series'];
+
+const REF = {
+  book: ['DraftKings','FanDuel','bet365','BetRivers','Fanatics','Caesars','HardRock','Kalshi'],
+  player: [],
+  'market-type': ['Blocks','Shots on Goal','Assists','Points','Power Play Points','Goals',
+    'Saves','Hits','Strikeouts','Hits Allowed','Home Runs','RBI','Stolen Bases',
+    'Rebounds','Assists','Points+Rebounds+Assists','Three Pointers',
+    'Moneyline','Spread','Total','Series ML','Series -1.5 games','Anytime TD','Kicking Points'],
+  'bet-desc': ['O 0.5','U 0.5','O 1.5','U 1.5','O 2.5','U 2.5','O 3.5','U 3.5',
+    'O 4.5','U 4.5','O 5.5','U 5.5','O 6.5','U 6.5','O 7.5','U 7.5','O 8.5','U 8.5',
+    'O 9.5','U 9.5','ML','ATS','-1.5 games','+1.5 games'],
+  'tail-source': [],
+  'sec-model': ['The Score','Establish The Run','NumberFire','FTN','Pinnacle','Sharp Action','Vegas Insider']
+};
+
+let currentMode = 'kelly';
+let signals = { sharps: true, split: false, tail: false, model: false, notes: false };
+let toggles = { live: false, parlay: false };
+let sessionLog = [];
+let logVisible = false;
+let acTimers = {};
+
+function getPreset() {
+  const sport = document.getElementById('sport').value;
+  return PRESETS[sport] || PRESETS.default;
+}
+
+function onSportChange() {
+  const p = getPreset();
+  document.getElementById('bankroll').value = p.bankroll;
+  document.getElementById('p-bankroll').textContent = '$' + p.bankroll.toLocaleString();
+  document.getElementById('p-k').textContent = p.k;
+  document.getElementById('p-max').textContent = p.maxU + 'u';
+  recalc();
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  ['kelly','signal','promo'].forEach(m => {
+    document.getElementById('mode-' + m).classList.toggle('active', m === mode);
+  });
+  document.getElementById('kelly-section').classList.toggle('show', mode === 'kelly');
+  document.getElementById('manual-stake-section').style.display = mode !== 'kelly' ? 'block' : 'none';
+  document.getElementById('promo-fields').classList.toggle('show', mode === 'promo');
+  updateParamsBar();
+}
+
+function updateParamsBar() {
+  const p = getPreset();
+  document.getElementById('p-bankroll').textContent = '$' + parseInt(document.getElementById('bankroll').value || p.bankroll).toLocaleString();
+  document.getElementById('p-k').textContent = p.k;
+  document.getElementById('p-max').textContent = p.maxU + 'u';
+  const sport = document.getElementById('sport').value;
+  const mt = (document.getElementById('market-type').value || '').toLowerCase();
+  const isSide = SIDE_MARKETS.some(s => mt.includes(s));
+  const hold = isSide ? p.holdSide : p.holdProp;
+  document.getElementById('p-hold').textContent = (hold * 100) + '%';
+}
+
+function amToDecimal(o) { return o > 0 ? o/100 + 1 : 100/Math.abs(o) + 1; }
+function amToImplied(o) { return o > 0 ? 100/(o+100) : Math.abs(o)/(Math.abs(o)+100); }
+
+function twoSideDevig(p1, p2) {
+  const sum = p1 + p2;
+  return p1 / sum;
+}
+
+function recalc() {
+  if (currentMode !== 'kelly') return;
+  const oddsVal = parseFloat(document.getElementById('odds').value);
+  const edgeVal = parseFloat(document.getElementById('edge').value);
+  const odds2Val = parseFloat(document.getElementById('odds2').value);
+  const bankroll = parseFloat(document.getElementById('bankroll').value) || getPreset().bankroll;
+
+  const empty = document.getElementById('calc-empty');
+  const results = document.getElementById('calc-results');
+
+  if (!oddsVal || !edgeVal) {
+    empty.style.display = 'block';
+    results.style.display = 'none';
+    return;
+  }
+
+  const sport = document.getElementById('sport').value;
+  const p = PRESETS[sport] || PRESETS.default;
+  const mt = (document.getElementById('market-type').value || '').toLowerCase();
+  const isSide = SIDE_MARKETS.some(s => mt.includes(s));
+  const hold = isSide ? p.holdSide : p.holdProp;
+
+  let noVigProb, vigMethod;
+  const impl1 = amToImplied(oddsVal);
+
+  if (!isNaN(odds2Val) && odds2Val !== 0) {
+    const impl2 = amToImplied(odds2Val);
+    noVigProb = twoSideDevig(impl1, impl2);
+    vigMethod = 'Two-sided';
+  } else {
+    noVigProb = impl1 / (1 + hold);
+    vigMethod = 'Hold % fallback (' + (hold*100) + '%)';
+  }
+
+  const trueProb = noVigProb + edgeVal;
+  if (trueProb <= 0 || trueProb >= 1) {
+    empty.textContent = 'Edge out of range.';
+    empty.style.display = 'block';
+    results.style.display = 'none';
+    return;
+  }
+
+  const B = amToDecimal(oddsVal) - 1;
+  const fullKelly = (trueProb * B - (1 - trueProb)) / B;
+
+  if (fullKelly <= 0) {
+    empty.textContent = 'Negative EV — no bet.';
+    empty.style.display = 'block';
+    results.style.display = 'none';
+    return;
+  }
+
+  const units = Math.min(parseFloat((p.k * fullKelly * 100).toFixed(2)), p.maxU);
+  const stake = parseFloat((units * 0.01 * bankroll / amToDecimal(oddsVal)).toFixed(2));
+  const totalBet = parseFloat((stake * amToDecimal(oddsVal)).toFixed(2));
+
+  empty.style.display = 'none';
+  results.style.display = 'block';
+  document.getElementById('r-vigmethod').textContent = vigMethod;
+  document.getElementById('r-novig').textContent = (noVigProb * 100).toFixed(2) + '%';
+  document.getElementById('r-trueprob').textContent = (trueProb * 100).toFixed(2) + '%';
+  document.getElementById('r-fullkelly').textContent = fullKelly.toFixed(4);
+  document.getElementById('r-units').textContent = units.toFixed(2) + 'u';
+  document.getElementById('r-stake').textContent = '$' + stake.toFixed(2) + ' / $' + totalBet.toFixed(2);
+
+  updateParamsBar();
+}
+
+function updateManualStake() {
+  const units = parseFloat(document.getElementById('manual-units').value);
+  const odds = parseFloat(document.getElementById('odds').value);
+  const bankroll = getPreset().bankroll;
+  if (!isNaN(units) && !isNaN(odds)) {
+    const dec = amToDecimal(odds);
+    const stake = (units * 0.01 * bankroll / dec).toFixed(2);
+    document.getElementById('manual-stake').value = stake;
+  }
+}
+
+function updateManualUnits() {
+  const stake = parseFloat(document.getElementById('manual-stake').value);
+  const odds = parseFloat(document.getElementById('odds').value);
+  const bankroll = getPreset().bankroll;
+  if (!isNaN(stake) && !isNaN(odds)) {
+    const dec = amToDecimal(odds);
+    const units = (stake * dec / bankroll * 100).toFixed(2);
+    document.getElementById('manual-units').value = units;
+  }
+}
+
+function toggleSignal(sig) {
+  signals[sig] = !signals[sig];
+  const check = document.getElementById('sig-' + sig);
+  check.classList.toggle('on', signals[sig]);
+  check.textContent = signals[sig] ? '✓' : '';
+  const inputEl = document.getElementById('sig-' + sig + '-input');
+  if (inputEl) inputEl.style.display = signals[sig] ? 'flex' : 'none';
+  if (sig === 'notes') {
+    document.getElementById('notes-textarea-row').style.display = signals[sig] ? 'block' : 'none';
+  }
+}
+
+function toggleSwitch(tog) {
+  toggles[tog] = !toggles[tog];
+  const el = document.getElementById('tog-' + tog);
+  el.classList.toggle('on', toggles[tog]);
+}
+
+function onPromoTypeChange() {
+  const v = document.getElementById('promo-type').value;
+  document.getElementById('boost-fields').style.display = v === 'Boost' ? 'block' : 'none';
+  document.getElementById('freebet-fields').style.display = (v === 'Free bet' || v === 'Qualifier') ? 'block' : 'none';
+}
+
+function calcBoostedOdds() {
+  const odds = parseFloat(document.getElementById('odds').value);
+  const pct = parseFloat(document.getElementById('boost-pct').value);
+  if (isNaN(odds) || isNaN(pct)) return;
+  const dec = amToDecimal(odds);
+  const boostedDec = 1 + (dec - 1) * (1 + pct/100);
+  const boostedAm = boostedDec >= 2 ? Math.round((boostedDec-1)*100) : Math.round(-100/(boostedDec-1));
+  document.getElementById('boosted-odds').value = (boostedAm > 0 ? '+' : '') + boostedAm;
+}
+
+function acInput(field) {
+  clearTimeout(acTimers[field]);
+  acTimers[field] = setTimeout(() => {
+    const inputEl = document.getElementById(field);
+    const listEl = document.getElementById(field + '-ac');
+    if (!inputEl || !listEl) return;
+    const val = inputEl.value.toLowerCase().trim();
+    const items = REF[field] || [];
+    const filtered = val ? items.filter(i => i.toLowerCase().includes(val)) : items.slice(0,8);
+    if (!filtered.length) { listEl.classList.remove('open'); return; }
+    listEl.innerHTML = filtered.map(i =>
+      `<div class="ac-item" onmousedown="acSelect('${field}','${i.replace(/'/g,"\\'")}')">` + i + '</div>'
+    ).join('');
+    listEl.classList.add('open');
+  }, 80);
+}
+
+function acBlur(field) {
+  setTimeout(() => {
+    const listEl = document.getElementById(field + '-ac');
+    if (listEl) listEl.classList.remove('open');
+  }, 200);
+}
+
+function acSelect(field, val) {
+  const inputEl = document.getElementById(field);
+  if (inputEl) inputEl.value = val;
+  const listEl = document.getElementById(field + '-ac');
+  if (listEl) listEl.classList.remove('open');
+  if (field === 'market-type') updateParamsBar();
+}
+
+function getCalcValues() {
+  if (currentMode !== 'kelly') return null;
+  const r = document.getElementById('calc-results');
+  if (!r || r.style.display === 'none') return null;
+  return {
+    vigMethod: document.getElementById('r-vigmethod').textContent,
+    noVigProb: document.getElementById('r-novig').textContent,
+    trueProb: document.getElementById('r-trueprob').textContent,
+    fullKelly: document.getElementById('r-fullkelly').textContent,
+    units: document.getElementById('r-units').textContent,
+    stakeTotal: document.getElementById('r-stake').textContent
+  };
+}
+
+function buildRow() {
+  const sport = document.getElementById('sport').value;
+  const book = document.getElementById('book').value;
+  const player = document.getElementById('player').value;
+  const marketType = document.getElementById('market-type').value;
+  const betDesc = document.getElementById('bet-desc').value;
+  const odds = document.getElementById('odds').value;
+  const betType = document.getElementById('bet-type').value;
+  const p = getPreset();
+  const calc = getCalcValues();
+
+  let units = '', stake = '', totalBet = '', vigMethod = '', noVig = '', trueProb = '', fullKelly = '', anEdge = '', odds2 = '', marketAvail = '';
+
+  if (currentMode === 'kelly' && calc) {
+    anEdge = document.getElementById('edge').value;
+    odds2 = document.getElementById('odds2').value;
+    marketAvail = document.getElementById('market-avail').value;
+    vigMethod = calc.vigMethod;
+    noVig = calc.noVigProb;
+    trueProb = calc.trueProb;
+    fullKelly = calc.fullKelly;
+    units = calc.units;
+    const parts = calc.stakeTotal.split('/');
+    stake = parts[0].trim().replace('$','');
+    totalBet = parts[1] ? parts[1].trim().replace('$','') : '';
+  } else {
+    units = document.getElementById('manual-units').value;
+    stake = document.getElementById('manual-stake').value;
+    if (odds && stake) {
+      totalBet = (parseFloat(stake) * amToDecimal(parseFloat(odds))).toFixed(2);
+    }
+  }
+
+  const promoType = currentMode === 'promo' ? document.getElementById('promo-type').value : '';
+  const promoIntent = currentMode === 'promo' ? document.getElementById('promo-intent').value : '';
+  const boostPct = (currentMode === 'promo' && document.getElementById('promo-type').value === 'Boost') ? document.getElementById('boost-pct').value : '';
+  const boostedOdds = (currentMode === 'promo' && document.getElementById('promo-type').value === 'Boost') ? document.getElementById('boosted-odds').value : '';
+  const freeBetAmt = document.getElementById('freebet-amt') ? document.getElementById('freebet-amt').value : '';
+  const linkedPromo = document.getElementById('linked-promo') ? document.getElementById('linked-promo').value : '';
+
+  const sharpCount = signals.sharps ? document.getElementById('sharp-count').value : '';
+  const dollarSplit = signals.split ? 'Y' : '';
+  const tailFlag = signals.tail ? 'Y' : '';
+  const tailSource = signals.tail ? document.getElementById('tail-source').value : '';
+  const secModel = signals.model ? document.getElementById('sec-model').value : '';
+  const notes = signals.notes ? document.getElementById('notes-text').value : '';
+
+  return {
+    timestamp: new Date().toLocaleString(),
+    modelVersion: MODEL_VERSION,
+    entryMode: currentMode === 'kelly' ? 'Full Kelly' : currentMode === 'signal' ? 'Signal-based' : 'Promo/Entertainment',
+    sport, book, player, betDesc, marketType, betType, odds,
+    stake, totalBet, liveBet: toggles.live ? 'Y' : 'N', partOfParlay: toggles.parlay ? 'Y' : 'N',
+    otherSideOdds: odds2, vigMethod, noVigProb: noVig, anEdge, trueProb, fullKelly, units, marketAvail,
+    promoType, promoIntent, boostPct, boostedOdds, freeBetAmt, linkedPromo,
+    sharpCount, dollarSplit, tailFlag, tailSource, secModel, notes
+  };
+}
+
+function saveToRef(row) {
+  if (row.player && !REF.player.includes(row.player)) REF.player.push(row.player);
+  if (row.book && !REF.book.includes(row.book)) REF.book.push(row.book);
+  if (row.marketType && !REF['market-type'].includes(row.marketType)) REF['market-type'].push(row.marketType);
+  if (row.betDesc && !REF['bet-desc'].includes(row.betDesc)) REF['bet-desc'].push(row.betDesc);
+  if (row.tailSource && !REF['tail-source'].includes(row.tailSource)) REF['tail-source'].push(row.tailSource);
+  if (row.secModel && !REF['sec-model'].includes(row.secModel)) REF['sec-model'].push(row.secModel);
+}
+
+function addToSessionLog(row) {
+  sessionLog.unshift(row);
+  renderSessionLog();
+}
+
+function renderSessionLog() {
+  const container = document.getElementById('log-entries');
+  const empty = document.getElementById('log-empty');
+  document.getElementById('session-count').textContent = sessionLog.length + ' bet' + (sessionLog.length !== 1 ? 's' : '');
+  document.getElementById('log-toggle-btn').textContent = (logVisible ? '▲' : '▼') + ' LOG (' + sessionLog.length + ')';
+
+  if (!sessionLog.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  container.innerHTML = sessionLog.map((r,i) => {
+    const modeBadge = r.entryMode === 'Full Kelly' ? '<span class="badge badge-kelly">Kelly</span>' :
+      r.entryMode === 'Signal-based' ? '<span class="badge badge-signal">Signal</span>' :
+      '<span class="badge badge-promo">Promo</span>';
+    const parlayBadge = r.partOfParlay === 'Y' ? '<span class="badge badge-parlay">parlay</span>' : '';
+    const liveBadge = r.liveBet === 'Y' ? '<span class="badge badge-live">live</span>' : '';
+    const name = (r.player || r.sport || '?') + (r.betDesc ? ' — ' + r.betDesc : '');
+    const detail = [r.book, r.odds ? (r.odds > 0 ? '+' : '') + r.odds : '', r.sharpCount ? r.sharpCount + ' sharps' : '', r.promoType && r.promoType !== 'None' ? r.promoType : ''].filter(Boolean).join(' · ');
+    const unitDisplay = r.units ? r.units : (r.stake ? '$' + r.stake : '');
+    const stakeDisplay = r.stake ? '$' + r.stake : '';
+    return `<div class="log-entry">
+      <div class="log-entry-left">
+        <div class="log-name">${name}</div>
+        <div class="log-detail">${modeBadge}${parlayBadge}${liveBadge}${detail}</div>
+      </div>
+      <div class="log-entry-right">
+        <div class="log-units">${unitDisplay}</div>
+        <div class="log-stake">${stakeDisplay}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSessionLog() {
+  logVisible = !logVisible;
+  document.getElementById('session-log').style.display = logVisible ? 'block' : 'none';
+  renderSessionLog();
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.className = 'status-bar ' + type;
+  if (type === 'success') setTimeout(() => el.className = 'status-bar', 3000);
+}
+
+async function logBet() {
+  const row = buildRow();
+  if (!row.sport || !row.odds) {
+    showStatus('Sport and odds are required.', 'error');
+    return;
+  }
+
+  saveToRef(row);
+  addToSessionLog(row);
+
+  if (!logVisible) {
+    logVisible = true;
+    document.getElementById('session-log').style.display = 'block';
+  }
+
+  const params = new URLSearchParams(row);
+  showStatus('Logging...', 'sending');
+
+  try {
+    await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+    showStatus('Logged.', 'success');
+  } catch(e) {
+    showStatus('Saved locally. Sheet sync failed.', 'error');
+  }
+
+  resetForm();
+}
+
+function resetForm() {
+  ['player','book','market-type','bet-desc','odds','odds2','edge','manual-units','manual-stake',
+   'sharp-count','tail-source','sec-model','notes-text','boost-pct','boosted-odds','freebet-amt','linked-promo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('bet-type').value = 'Single';
+  document.getElementById('market-avail').value = 'Mainstream';
+  document.getElementById('promo-type').value = 'None';
+  document.getElementById('promo-intent').value = 'Y';
+  document.getElementById('boost-fields').style.display = 'none';
+  document.getElementById('freebet-fields').style.display = 'none';
+  ['live','parlay'].forEach(t => { toggles[t] = false; document.getElementById('tog-'+t).classList.remove('on'); document.getElementById('tog-'+t).querySelector('.toggle-dot').style.left='2px'; });
+  Object.keys(signals).forEach(s => {
+    if (s !== 'sharps') {
+      signals[s] = false;
+      const check = document.getElementById('sig-'+s);
+      if (check) { check.classList.remove('on'); check.textContent = ''; }
+      const inp = document.getElementById('sig-'+s+'-input');
+      if (inp) inp.style.display = 'none';
+    }
+  });
+  document.getElementById('notes-textarea-row').style.display = 'none';
+  document.getElementById('calc-empty').textContent = 'Enter edge and odds to see sizing.';
+  document.getElementById('calc-empty').style.display = 'block';
+  document.getElementById('calc-results').style.display = 'none';
+}
+
+signals.sharps = true;
+document.getElementById('sig-sharps').classList.add('on');
+document.getElementById('sig-sharps').textContent = '✓';
+onSportChange();
+</script>
+</body>
+</html>
 
